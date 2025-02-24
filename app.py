@@ -4,30 +4,51 @@ def get_reviews():
   try:    
     while True:
       try:
-        inputAppId = int(input("Enter the app ID: "))
-        inputNumberOfReviews = int(input("Enter the number of reviews you want to collect (max. 100): "))
+        input_app_id = int(input("Enter the app ID: "))
+        input_number_of_reviews = int(input("Enter the number of reviews you want to collect (max. 100): "))
         
-        if inputAppId < 1 or not (1 <= inputNumberOfReviews <= 100):
+        if input_app_id < 1 or not (1 <= input_number_of_reviews <= 100):
           print("Invalid input. App ID must be greater than 0, and number of reviews must be between 1 and 100.")
           continue
         
         break
       except ValueError:
         print("Invalid input. App ID and number of reviews must be numbers.")
-        
-    url = f"https://store.steampowered.com/appreviews/{inputAppId}/?json=1&num_per_page={inputNumberOfReviews}"
     
+    # Get title
+    app_url = f"https://store.steampowered.com/app/{input_app_id}/"
+    response = requests.get(app_url, timeout=10)
+    
+    if response.status_code != 200:
+      print(f"Failed to fetch game data. HTTP Status: {response.status_code}")
+      return
+    
+    html_text = response.text
+    title_start = html_text.find("<title>")
+    title_end = html_text.find("</title>")
+    
+    if title_start == -1 or title_end == -1:
+        print("Failed to extract game title.")
+        return
+
+    title = html_text[title_start + 7:title_end].strip()
+    title = title.replace("on Steam", "").strip()
+    
+    print(f"Fetching reviews for {title}...")
+    
+    # Get reviews
+    reviews_url = f"https://store.steampowered.com/appreviews/{input_app_id}/?json=1&num_per_page={input_number_of_reviews}"
+
     try:
-      response = requests.get(url ,timeout=10)
+      response = requests.get(reviews_url, timeout=10)
       response.raise_for_status()
-      
       data = response.json()
       
       with open("reviews.json", "w", encoding="utf-8") as file:
         json.dump(data, file, ensure_ascii=False, indent=4)
         print("Success! Reviews saved to reviews.json!\n")
         
-      confirmed = input("Do you want to get stats? (y/n): ")
+      confirmed = input("Do you want to get stats? (y/n): ").strip().lower()
       
       if confirmed.lower() == "y":
         get_statistics(data)
